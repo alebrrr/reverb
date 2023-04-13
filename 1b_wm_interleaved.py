@@ -348,16 +348,18 @@ def interleaved_1back(typet="room_size",name_ID="Ale",nr="1",ramp=.2):
     generated_sequence_2 = generate_sequence(sequence_length)
     
     
-    total_counts = count_total_consecutive_repetitions(generated_sequence_1)
+    total_counts1 = count_total_consecutive_repetitions(generated_sequence_1)
     
-    for item, total_count in total_counts.items():
-        print(f"{item}={total_count}")
-    total_counts = count_total_consecutive_repetitions(generated_sequence_2)
-    
-    for item, total_count in total_counts.items():
-        print(f"{item}={total_count}")
+    while abs(total_counts1["1"]-total_counts1["0"]) >1 or total_counts1["1"]+total_counts1["0"] <40:
+        generated_sequence_1=generate_sequence(100)
+        total_counts1=count_total_consecutive_repetitions(generated_sequence_1)
         
-    input("these values are the number of consecutive repetitions over 100 stimuli. consider interrupting the experiment and rerunning if the values appear excessively skewed.")
+    total_counts2 = count_total_consecutive_repetitions(generated_sequence_2)
+    
+    while abs(total_counts2["1"]-total_counts2["0"]) >1 or total_counts2["1"]+total_counts2["0"] <40:
+        generated_sequence_2=generate_sequence(100)
+        total_counts2=count_total_consecutive_repetitions(generated_sequence_2)
+        
     generated_sequence_2 = [int(digit) for digit in generated_sequence_2] 
     generated_sequence_1 = [int(digit) for digit in generated_sequence_1] 
     input("you are now going to hear a series of stimuli. Stimuli will be alternated between two types. One will be "+starto+""",
