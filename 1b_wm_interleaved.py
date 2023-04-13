@@ -51,7 +51,10 @@ import random
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy.stats import norm
-
+def determine_prel_order():
+    return random.sample(["room_size","voice","angle"],3)
+def determine_test_start():
+    return random.sample(["room_size","angle"],1)
 def calculate_dprime(hr, far):
     z_hr = norm.ppf(hr)
     z_far = norm.ppf(far)
@@ -393,5 +396,7 @@ def interleaved_1back(typet="room_size",name_ID="Ale",nr="1",ramp=.2):
         pickle.dump([generated_sequence_1,generated_sequence_2,responses1,responses2,times1,times2], f)
         
 # if __name__ == '__main__':
+    # determine_prel_order()
 #     preliminary()
+#   determine_test_start()
 #     interleaved_1back()
