@@ -35,6 +35,7 @@ output preliminary():
 output interleaved_1back():
     typet+name_ID+nr+"_wm_"+typet1+"_"+typet2+"_seq1_seq2_res1_res2_tim1_tim2.pkl" (pickle file) list containing 
     sequence of first stimulus type, sequence of 2nd stimulus type, responses for each, latencies for each
+EDIT: the outputs now also contain the 0.x offset ramp value. output interleaved contains also a time token to avoid overrwrite.
 
 """
 
