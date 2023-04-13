@@ -14,8 +14,7 @@ for each interleaved block 2 binary sequences (50/50 0/1 10110010100010110111001
 Sequence generation aims at a balance between having as many consecutive repetitions as possible and having them to be 
 as unpredictable as possible. 
 
-The actual number of consecutive repetitions for each stimulus (1/0) is always around 20. 
-the actual count is printed before running the experiment
+The actual number of consecutive repetitions for each stimulus (1/0) is always more than 20 and within 1 for each stimulus
 
 preliminary is, at the moment, staircase 4 up 1 down. (85%). 
 
