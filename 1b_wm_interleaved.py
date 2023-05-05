@@ -35,7 +35,8 @@ output preliminary():
 output interleaved_1back():
     typet+name_ID+nr+"_wm_"+typet1+"_"+typet2+"_seq1_seq2_res1_res2_tim1_tim2.pkl" (pickle file) list containing 
     sequence of first stimulus type, sequence of 2nd stimulus type, responses for each, latencies for each
-EDIT: the outputs now also contain the 0.x offset ramp value. output interleaved contains also a time token to avoid overrwrite.
+    
+    EDIT: the outputs now also contain the 0.x offset ramp value. output interleaved contains also a time token to avoid overrwrite.
 
 """
 
@@ -60,16 +61,26 @@ def calculate_dprime(hr, far):
     z_far = norm.ppf(far)
     d_prime = z_hr - z_far
     return d_prime
+def calculate_hit_and_false_alarm_rate(stimuli, responses):
+    hits = 0
+    false_alarms = 0
+    total_ones = 0
+    total_zeros = 0
 
-def calculate_hit_and_far(stimuli, responses):
-    
-    hits = sum([s == r for s, r in zip(stimuli, responses)])
-    false_alarms = sum([s != r for s, r in zip(stimuli, responses)])
+    for i in range(1, len(stimuli)-1):
+        if stimuli[i] == stimuli[i - 1]:
+            total_ones += 1
+            if responses[i-1] == 1:
+                hits += 1
+        else:
+            total_zeros += 1
+            if responses[i-1] == 1:
+                false_alarms += 1
 
-    hit_rate = hits / len(stimuli)
-    false_alarm_rate = false_alarms / len(stimuli)
+    hit_rate = hits / total_ones
+    false_alarm_rate = false_alarms / total_zeros
 
-    return hit_rate, false_alarm_rate    
+    return hit_rate, false_alarm_rate
 
 def present_stimuli_stair(stimuli_list,typet,ramp):
     indices = list(range(len(stimuli_list)))
@@ -213,6 +224,36 @@ def preliminary(typet="angle",name_ID="Ale",nr="1",ramp=.2):
         print(f)
         stims.append(slab.Precomputed.read(f))
     print(stims[0][0].duration)
+    input("after you press enter you will hear a series of sounds coming from rooms of increasing size, and then decreasing. Now press Enter to continue. "  )
+    print("increasing")
+    for i in stims:
+        time.sleep(0.5)
+        i[0].ramp("offset",.3).play()
+        time.sleep(0.5)
+    print("decreasing")
+
+    for i in reversed(stims):
+        time.sleep(0.5)
+        i[0].ramp("offset",.3).play()
+        time.sleep(0.5)
+        
+        
+    input("now again, but sound identity will be random, while room size will increase and decrease like before.  Now press Enter to continue. "  )
+    print("increasing")
+    for i in stims:
+        time.sleep(0.5)
+        random.sample(i, 1)[0].ramp("offset",.3).play()
+        time.sleep(0.5)
+    print("decreasing")
+
+    for i in reversed(stims):
+        time.sleep(0.5)
+        random.sample(i, 1)[0].ramp("offset",.3).play()
+        time.sleep(0.5)
+        
+              
+        
+        
     input("after you press enter you will hear four sounds, all being played from the same "+typet+". After those four sounds, there will be a three seconds pause, then the task will start. During the task you will be presented wit three stimuli. One will be from a different "+typet+" than the other two. You will tell us which sound came from a different "+typet+" by pressing 1, 2 or 3. Now press Enter to continue. "  )
     stims[0].play()
     time.sleep(0.25)
@@ -397,7 +438,8 @@ def interleaved_1back(typet="room_size",name_ID="Ale",nr="1",ramp=.2):
     with open(typet+name_ID+nr+"_wm_"+typet1+"_"+typet2+"_"+str(ramp)+"_"+str(int(time.time()))+"_seq1_seq2_res1_res2_tim1_tim2.pkl", 'wb') as f:
         pickle.dump([generated_sequence_1,generated_sequence_2,responses1,responses2,times1,times2], f)
         
-# if __name__ == '__main__':
+if __name__ == '__main__':
+    preliminary(typet="room_size", name_ID="ALE", nr="5", ramp=.3)
     # determine_prel_order()
 #     preliminary()
 #   determine_test_start()
