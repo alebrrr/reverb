@@ -296,7 +296,7 @@ def preliminary(typet="angle",name_ID="Ale",nr="1",ramp=.2):
 # name_ID="Ale"
 # nr="1"
 
-def interleaved_1back(typet="room_size",name_ID="Ale",nr="1",ramp=.2):
+def interleaved_1back(typet="room_size",name_ID="Ale",nr="1",ramp=.2, override=False):
     
     with open(typet+name_ID+nr+"_"+str(ramp)+"_preliminary_stair.pkl", 'rb') as f:
         stair=pickle.load( f)
@@ -326,8 +326,12 @@ def interleaved_1back(typet="room_size",name_ID="Ale",nr="1",ramp=.2):
         echo_use= stims[int(np.ceil((np.mean((stair["reversal_intensities"][-(stair["n_reversals"]-1):])))))]
         stims_echo = [stims[0],echo_use]    
     print(zip_files[int(np.ceil((np.mean((stair["reversal_intensities"][-(stair["n_reversals"]-1):])))))]+"_vs_"+zip_files[0])
-
+    if override:
         
+        if typet=="room_size":
+            echo_use= stims[-1]
+            stims_echo = [stims[0],echo_use]    
+        print(zip_files[int(np.ceil((np.mean((stair["reversal_intensities"][-(stair["n_reversals"]-1):])))))]+"_vs_"+zip_files[0])
         
         
     with open("voice"+name_ID+str(nr)+"_"+str(ramp)+"_preliminary_stair.pkl", 'rb') as f:
