@@ -331,7 +331,7 @@ def interleaved_1back(typet="room_size",name_ID="Ale",nr="1",ramp=.2, override=F
         if typet=="room_size":
             echo_use= stims[-1]
             stims_echo = [stims[0],echo_use]    
-        print(zip_files[int(np.ceil((np.mean((stair["reversal_intensities"][-(stair["n_reversals"]-1):])))))]+"_vs_"+zip_files[0])
+        print(zip_files[-1]+"_vs_"+zip_files[0])
         
         
     with open("voice"+name_ID+str(nr)+"_"+str(ramp)+"_preliminary_stair.pkl", 'rb') as f:
