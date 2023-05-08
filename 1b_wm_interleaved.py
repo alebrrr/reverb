@@ -224,32 +224,33 @@ def preliminary(typet="angle",name_ID="Ale",nr="1",ramp=.2):
         print(f)
         stims.append(slab.Precomputed.read(f))
     print(stims[0][0].duration)
-    input("after you press enter you will hear a series of sounds coming from rooms of increasing size, and then decreasing. Now press Enter to continue. "  )
-    print("increasing")
-    for i in stims:
-        time.sleep(0.5)
-        i[0].ramp("offset",.3).play()
-        time.sleep(0.5)
-    print("decreasing")
-
-    for i in reversed(stims):
-        time.sleep(0.5)
-        i[0].ramp("offset",.3).play()
-        time.sleep(0.5)
-        
-        
-    input("now again, but sound identity will be random, while room size will increase and decrease like before.  Now press Enter to continue. "  )
-    print("increasing")
-    for i in stims:
-        time.sleep(0.5)
-        random.sample(i, 1)[0].ramp("offset",.3).play()
-        time.sleep(0.5)
-    print("decreasing")
-
-    for i in reversed(stims):
-        time.sleep(0.5)
-        random.sample(i, 1)[0].ramp("offset",.3).play()
-        time.sleep(0.5)
+    if typet=="room_size":
+        input("after you press enter you will hear a series of sounds coming from rooms of increasing size, and then decreasing. Now press Enter to continue. "  )
+        print("increasing")
+        for i in stims:
+            time.sleep(0.5)
+            i[0].ramp("offset",.3).play()#Todo wtf rand startend
+            time.sleep(0.5)
+        print("decreasing")
+    
+        for i in reversed(stims):
+            time.sleep(0.5)
+            i[0].ramp("offset",.3).play()
+            time.sleep(0.5)
+            
+            
+        input("now again, but sound identity will be random, while room size will increase and decrease like before.  Now press Enter to continue. "  )
+        print("increasing")
+        for i in stims:
+            time.sleep(0.5)
+            random.sample(i, 1)[0].ramp("offset",.3).play()
+            time.sleep(0.5)
+        print("decreasing")
+    
+        for i in reversed(stims):
+            time.sleep(0.5)
+            random.sample(i, 1)[0].ramp("offset",.3).play()
+            time.sleep(0.5)
         
               
         
@@ -438,8 +439,8 @@ def interleaved_1back(typet="room_size",name_ID="Ale",nr="1",ramp=.2):
     with open(typet+name_ID+nr+"_wm_"+typet1+"_"+typet2+"_"+str(ramp)+"_"+str(int(time.time()))+"_seq1_seq2_res1_res2_tim1_tim2.pkl", 'wb') as f:
         pickle.dump([generated_sequence_1,generated_sequence_2,responses1,responses2,times1,times2], f)
         
-if __name__ == '__main__':
-    preliminary(typet="room_size", name_ID="ALE", nr="5", ramp=.3)
+#if __name__ == '__main__':
+   # preliminary(typet="room_size", name_ID="ALE", nr="5", ramp=.3)
     # determine_prel_order()
 #     preliminary()
 #   determine_test_start()
