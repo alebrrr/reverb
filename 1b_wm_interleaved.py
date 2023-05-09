@@ -297,9 +297,9 @@ def preliminary(typet="angle",name_ID="Ale",nr="1",ramp=.2):
 # nr="1"
 
 def interleaved_1back(typet="room_size",name_ID="Ale",nr="1",ramp=.2, override=False):
-    
-    with open(typet+name_ID+nr+"_"+str(ramp)+"_preliminary_stair.pkl", 'rb') as f:
-        stair=pickle.load( f)
+    if not override:
+        with open(typet+name_ID+nr+"_"+str(ramp)+"_preliminary_stair.pkl", 'rb') as f:
+            stair=pickle.load( f)
     if typet=="angle":
         root_folder = 'USO_angles'
     
@@ -321,11 +321,11 @@ def interleaved_1back(typet="room_size",name_ID="Ale",nr="1",ramp=.2, override=F
     if typet=="angle":
         angle_use= stims[int(np.ceil((np.mean((stair["reversal_intensities"][-(stair["n_reversals"]-1):])))))]
         stims_angle=[stims[0],angle_use]
-    
-    elif typet=="room_size":
-        echo_use= stims[int(np.ceil((np.mean((stair["reversal_intensities"][-(stair["n_reversals"]-1):])))))]
-        stims_echo = [stims[0],echo_use]    
-    print(zip_files[int(np.ceil((np.mean((stair["reversal_intensities"][-(stair["n_reversals"]-1):])))))]+"_vs_"+zip_files[0])
+    if not override:
+        if typet=="room_size":
+            echo_use= stims[int(np.ceil((np.mean((stair["reversal_intensities"][-(stair["n_reversals"]-1):])))))]
+            stims_echo = [stims[0],echo_use]    
+        print(zip_files[int(np.ceil((np.mean((stair["reversal_intensities"][-(stair["n_reversals"]-1):])))))]+"_vs_"+zip_files[0])
     if override:
         
         if typet=="room_size":
