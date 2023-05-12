@@ -1,0 +1,133 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Fri May 12 10:08:31 2023
+
+@author: ab61diru
+"""
+
+import os
+import pickle
+import numpy as np
+from scipy.stats import norm, ttest_1samp
+
+class Subject:
+    def __init__(self, subject_name, directory):
+        self.subject_name = subject_name
+        self.directory = directory
+        self.blocks = []
+
+    def load_data(self):
+        files = sorted(os.listdir(self.directory), key=lambda x: int(x.split('_')[x.split('_').index('0.3')+1]))
+        for file in files:
+            if self.subject_name in file:
+                print(file)
+                with open(os.path.join(self.directory, file), 'rb') as f:
+                    block_data = pickle.load(f)
+                block_type = file.split('_')[0].replace(self.subject_name, '')
+                series_types = file.split('wm_')[1].split('_0.3')[0].split('_')
+                if "size" in series_types:
+                    series_types.remove("size")
+                series_1 = {'type': series_types[0], 'stimuli': block_data[0], 'responses': block_data[2], 'times': block_data[4]}
+                series_2 = {'type': series_types[1], 'stimuli': block_data[1], 'responses': block_data[3], 'times': block_data[5]}
+                self.blocks.append({'type': block_type, 'series': [series_1, series_2]})
+
+    def calculate_hit_and_false_alarm_rate(self, stimuli, responses):
+        hits = 0
+        false_alarms = 0
+        total_ones = 0
+        total_zeros = 0
+    
+        for i in range(1, len(stimuli)):
+            if stimuli[i] == stimuli[i - 1]:  # comparing current stimulus with previous
+                total_ones += 1
+                if responses[i-1] == 1:
+                    hits += 1
+            else:
+                total_zeros += 1
+                if responses[i-1] == 1:
+                    false_alarms += 1
+    
+        hit_rate = hits / total_ones if total_ones else 0
+        false_alarm_rate = false_alarms / total_zeros if total_zeros else 0
+        return hit_rate, false_alarm_rate
+
+    def exclude_responses_by_time(self, max_time):
+        for block in self.blocks:
+            for series in block['series']:
+                series['responses'] = [response for response, time in zip(series['responses'], series['times']) if time <= max_time]
+                series['times'] = [time for time in series['times'] if time <= max_time]
+
+    def calculate_d_prime(self, hit_rate, false_alarm_rate):
+        z_hit = norm.ppf(hit_rate)
+        z_fa = norm.ppf(false_alarm_rate)
+        d_prime = z_hit - z_fa
+        return d_prime
+
+    def calculate_d_prime_significance(self, hit_rate, false_alarm_rate):
+        d_prime = self.calculate_d_prime(hit_rate, false_alarm_rate)
+        _, p_value = ttest_1samp([hit_rate, false_alarm_rate], 0)
+        return d_prime, p_value
+
+    def calculate_performance(self, performance_type, block_type=None, block_order=None, max_latency=None):
+        performances = []
+        p_values = []
+        hit_rates = []
+        false_alarm_rates = []
+
+        block_count = { 'angle': 0, 'room': 0 }
+
+        for block in self.blocks:
+            if block_type is None or block['type'] == block_type:
+                block_count[block['type']] += 1
+                if block_order is None or block_order == block_count[block['type']]:
+                    for series in block['series']:
+                        if series['type'] == performance_type:
+                            stimuli, responses, times = series['stimuli'], series['responses'], series['times']
+                            if max_latency is not None:
+                                stimuli = [stimulus for stimulus, time in zip(stimuli, times) if time <= max_latency]
+                                responses = [response for response, time in zip(responses, times) if time <= max_latency]
+                                times = [time for time in times if time <= max_latency]
+                            hit_rate, false_alarm_rate = self.calculate_hit_and_false_alarm_rate(stimuli, responses)
+                            d_prime, p_value = self.calculate_d_prime_significance(hit_rate, false_alarm_rate)
+                            performances.append(d_prime)
+                            p_values.append(p_value)
+                            hit_rates.append(hit_rate)
+                            false_alarm_rates.append(false_alarm_rate)
+
+        average_performance = sum(performances) / len(performances) if performances else None
+        average_p_value = sum(p_values) / len(p_values) if p_values else None
+        average_hit_rate = sum(hit_rates) / len(hit_rates) if hit_rates else None
+        average_false_alarm_rate = sum(false_alarm_rates) / len(false_alarm_rates) if false_alarm_rates else None
+        return average_performance, average_hit_rate, average_false_alarm_rate
+        
+if __name__ == '__main__':
+    subjects=["Paul1","Gina1","ALE4","eri1"]
+    angle=[]
+    room=[]
+    voiceangle=[]
+    voiceroom=[]
+    for sub in subjects:
+
+      subject = Subject(sub, r"C:\Users\ab61diru\Desktop\data1wm")
+
+      subject.load_data()
+      a=subject.calculate_performance('voice', block_type='angle',max_latency=1)
+      b=subject.calculate_performance('voice', block_type='room',max_latency=1)
+      c=subject.calculate_performance('angle', block_type='angle',max_latency=1)
+      d=subject.calculate_performance('room', block_type='room',max_latency=1)
+      print(sub)
+      print("angle="+str(c))
+      print("room="+str(d))
+      print("voice angle="+str(a))
+      print("voice room="+str(b))
+
+      angle.append(c)
+      room.append(d)
+      voiceangle.append(a)
+      voiceroom.append(b)
+      
+    print(np.mean(voiceangle,0))
+    
+    print(np.mean(voiceroom,0))
+    print(np.mean(angle,0))
+    print(np.mean(room,0))
