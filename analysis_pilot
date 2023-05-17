@@ -1,15 +1,52 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri May 12 10:08:31 2023
+Created on Fri May 12 11:38:28 2023
 
 @author: ab61diru
 """
-
+import matplotlib.pyplot as plt
+import seaborn as sns
 import os
 import pickle
 import numpy as np
 from scipy.stats import norm, ttest_1samp
+from itertools import zip_longest
+def saverpdf(name):
+    import matplotlib.backends.backend_pdf as pdf_backend
+    # Create a PDF file to save the figures
+    pdf_filename = name+'.pdf'
+    pdf = pdf_backend.PdfPages(pdf_filename)
 
+    # Get a list of figure numbers in reverse order
+    fig_nums = plt.get_fignums()[::-1]
+
+    # Save all open figures in reverse order
+    for fig_num in fig_nums:
+        fig = plt.figure(fig_num)
+        pdf.savefig(fig, bbox_inches='tight')
+
+    # Close the PDF file
+    pdf.close()
+
+    print(f"All open figures saved in inverse order as {pdf_filename}")
+def average_nested_lists(lst):
+    avg_lst = []
+    count_lst = []
+
+    for sub_list in lst:
+        temp_sum = [0, 0]
+        temp_count = [0, 0]
+
+        for pair in sub_list:
+            for i, num in enumerate(pair):
+                if num is not None:
+                    temp_sum[i] += num
+                    temp_count[i] += 1
+
+        avg_lst.append([s/c if c != 0 else None for s, c in zip(temp_sum, temp_count)])
+        count_lst.append(temp_count)
+
+    return avg_lst, count_lst
 class Subject:
     def __init__(self, subject_name, directory):
         self.subject_name = subject_name
@@ -31,13 +68,22 @@ class Subject:
                 series_2 = {'type': series_types[1], 'stimuli': block_data[1], 'responses': block_data[3], 'times': block_data[5]}
                 self.blocks.append({'type': block_type, 'series': [series_1, series_2]})
 
-    def calculate_hit_and_false_alarm_rate(self, stimuli, responses):
+    def get_correct_response_indices(self, stimuli, responses):
+        correct_indices = []
+        for i in range(1, len(stimuli)):
+            if (stimuli[i] == stimuli[i - 1] and responses[i - 1] != 1) or \
+               (stimuli[i] != stimuli[i - 1] and responses[i - 1] != 0):
+                correct_indices.append(i)
+        return correct_indices
+
+    def calculate_hit_and_false_alarm_rate(self, stimuli, responses, exclude_indices=None):
         hits = 0
         false_alarms = 0
         total_ones = 0
         total_zeros = 0
-    
         for i in range(1, len(stimuli)):
+            if exclude_indices and i-1 in exclude_indices:
+                continue
             if stimuli[i] == stimuli[i - 1]:  # comparing current stimulus with previous
                 total_ones += 1
                 if responses[i-1] == 1:
@@ -46,10 +92,9 @@ class Subject:
                 total_zeros += 1
                 if responses[i-1] == 1:
                     false_alarms += 1
-    
         hit_rate = hits / total_ones if total_ones else 0
         false_alarm_rate = false_alarms / total_zeros if total_zeros else 0
-        return hit_rate, false_alarm_rate
+        return hit_rate, false_alarm_rate, total_ones, total_zeros,hits,false_alarms
 
     def exclude_responses_by_time(self, max_time):
         for block in self.blocks:
@@ -57,7 +102,9 @@ class Subject:
                 series['responses'] = [response for response, time in zip(series['responses'], series['times']) if time <= max_time]
                 series['times'] = [time for time in series['times'] if time <= max_time]
 
-    def calculate_d_prime(self, hit_rate, false_alarm_rate):
+    def calculate_d_prime(self, hit_rate, false_alarm_rate, num_signal_trials, num_noise_trials):
+        hit_rate = hit_rate if hit_rate < 1 else 1 - 1 / (2 * num_signal_trials)
+        false_alarm_rate = false_alarm_rate if false_alarm_rate > 0 else 1 / (2 * num_noise_trials)
         z_hit = norm.ppf(hit_rate)
         z_fa = norm.ppf(false_alarm_rate)
         d_prime = z_hit - z_fa
@@ -68,14 +115,19 @@ class Subject:
         _, p_value = ttest_1samp([hit_rate, false_alarm_rate], 0)
         return d_prime, p_value
 
-    def calculate_performance(self, performance_type, block_type=None, block_order=None, max_latency=None):
+    def calculate_performance(self, performance_type, block_type=None, block_order=None, max_latency=None, exclude_correct=False):
         performances = []
         p_values = []
         hit_rates = []
         false_alarm_rates = []
-
+        oness=[]
+        zeross=[]
+        skipped=[]
+        hitss=[]
+        falsess=[]
+        
         block_count = { 'angle': 0, 'room': 0 }
-
+    
         for block in self.blocks:
             if block_type is None or block['type'] == block_type:
                 block_count[block['type']] += 1
@@ -83,51 +135,166 @@ class Subject:
                     for series in block['series']:
                         if series['type'] == performance_type:
                             stimuli, responses, times = series['stimuli'], series['responses'], series['times']
+                            exclude_indices = []
+                            if exclude_correct:
+                                for other_series in block['series']:
+                                    if other_series['type'] != performance_type:
+                                        exclude_indices = self.get_correct_response_indices(other_series['stimuli'], other_series['responses'])
                             if max_latency is not None:
                                 stimuli = [stimulus for stimulus, time in zip(stimuli, times) if time <= max_latency]
                                 responses = [response for response, time in zip(responses, times) if time <= max_latency]
                                 times = [time for time in times if time <= max_latency]
-                            hit_rate, false_alarm_rate = self.calculate_hit_and_false_alarm_rate(stimuli, responses)
-                            d_prime, p_value = self.calculate_d_prime_significance(hit_rate, false_alarm_rate)
+                            hit_rate, false_alarm_rate, total_ones, total_zeros,hits,false_alarms = self.calculate_hit_and_false_alarm_rate(stimuli, responses, exclude_indices=exclude_indices)
+                            print(f"Hit rate: {hit_rate}, False alarm rate: {false_alarm_rate}, len stimuli: {len(stimuli)}, len responses: {len(responses)}, len ones: {(total_ones)},len zeros: {(total_zeros)}")  
+                            if hit_rate == 0 or false_alarm_rate == 0:
+                                skipped.append(str(block_count)+block_type+performance_type)
+                                continue  # Skip this block if both HR and FAR are zero
+                            d_prime = self.calculate_d_prime(hit_rate, false_alarm_rate, total_ones, total_zeros)
                             performances.append(d_prime)
-                            p_values.append(p_value)
                             hit_rates.append(hit_rate)
                             false_alarm_rates.append(false_alarm_rate)
+                            oness.append(total_ones)
+                            zeross.append(total_zeros)
+                            hitss.append(hits)
+                            falsess.append(false_alarms)
+                            
+    
+        average_hit_rate = sum(hitss) / sum(oness) 
+        average_false_alarm_rate = sum(falsess) / sum(zeross) 
+        average_performance = self.calculate_d_prime(average_hit_rate, average_false_alarm_rate, sum(oness), sum(zeross))
 
-        average_performance = sum(performances) / len(performances) if performances else None
-        average_p_value = sum(p_values) / len(p_values) if p_values else None
-        average_hit_rate = sum(hit_rates) / len(hit_rates) if hit_rates else None
-        average_false_alarm_rate = sum(false_alarm_rates) / len(false_alarm_rates) if false_alarm_rates else None
-        return average_performance, average_hit_rate, average_false_alarm_rate
-        
+        return average_performance, average_hit_rate, average_false_alarm_rate,skipped,                            performances,hit_rates,false_alarm_rates,oness,zeross,hitss,falsess
+
+
+       
 if __name__ == '__main__':
-    subjects=["Paul1","Gina1","ALE4","eri1"]
+    subjects=["DUM4"]
+    nameo="DUMMY"
+    max_latency=None
+    exclude_correct=False
+
     angle=[]
     room=[]
     voiceangle=[]
     voiceroom=[]
+    anglet=[]
+    roomt=[]
+    voiceanglet=[]
+    voiceroomt=[]
     for sub in subjects:
 
-      subject = Subject(sub, r"C:\Users\ab61diru\Desktop\data1wm")
+        subject = Subject(sub, r"C:\Users\ab61diru\Desktop\data1wmfk")
+        subject.load_data()
+        a=subject.calculate_performance('voice', block_type='angle', exclude_correct=exclude_correct,max_latency=max_latency)#, max_latency=1)
+        b=subject.calculate_performance('voice', block_type='room', exclude_correct=exclude_correct,max_latency=max_latency)#,max_latency=1)
+        c=subject.calculate_performance('angle', block_type='angle', exclude_correct=exclude_correct,max_latency=max_latency)#,max_latency=1)
+        d=subject.calculate_performance('room', block_type='room', exclude_correct=exclude_correct,max_latency=max_latency)#,max_latency=1)
+        print(sub)
+        print("angle="+str(c))
+        print("room="+str(d))
+        print("voice angle="+str(a))
+        print("voice room="+str(b))
 
-      subject.load_data()
-      a=subject.calculate_performance('voice', block_type='angle',max_latency=1)
-      b=subject.calculate_performance('voice', block_type='room',max_latency=1)
-      c=subject.calculate_performance('angle', block_type='angle',max_latency=1)
-      d=subject.calculate_performance('room', block_type='room',max_latency=1)
-      print(sub)
-      print("angle="+str(c))
-      print("room="+str(d))
-      print("voice angle="+str(a))
-      print("voice room="+str(b))
-
-      angle.append(c)
-      room.append(d)
-      voiceangle.append(a)
-      voiceroom.append(b)
+        angle.append(c[:3])
+        room.append(d[:3])
+        voiceangle.append(a[:3])
+        voiceroom.append(b[:3])
       
+        anglet.append(c)
+        roomt.append(d)
+        voiceanglet.append(a)
+        voiceroomt.append(b)
+    print(np.mean(angle,0))
+    print(np.mean(room,0))
     print(np.mean(voiceangle,0))
     
     print(np.mean(voiceroom,0))
-    print(np.mean(angle,0))
-    print(np.mean(room,0))
+    import matplotlib.pyplot as plt
+    import numpy as np
+    ttt=[]
+    
+    conditions = ['angle', 'room', 'voice angle', 'voice room']
+    ttt=[[]for i in conditions]
+    for iii,name in enumerate(subjects):
+        # Subject Index
+        subject_index = iii
+
+        # Your data
+        # anglet, roomt, voiceanglet, voiceroomt
+
+        # Creating Figure
+        fig, axs = plt.subplots()
+        plt.rcParams['axes.facecolor'] = "0.92"  # Set the background color to light grey
+        fig.patch.set_facecolor("0.92")  # Set the background color to light grey
+        # Setting up data and labels
+        conditions = ['angle', 'room', 'voice angle', 'voice room']
+        data = [anglet[subject_index], roomt[subject_index], voiceanglet[subject_index], voiceroomt[subject_index]]
+        color_list = ['skyblue', 'lightcoral', 'deepskyblue', 'salmon']
+
+        # Looping over conditions
+        for i, (cond, color) in enumerate(zip(data, color_list)):
+            # Plot total d prime
+            axs.bar(i-0.2, cond[0], color=color, width=0.2)
+            # Add the text
+            axs.text(i-0.2, cond[0], f"far={sum(cond[10])}/{sum(cond[8])}\nhr={sum(cond[9])}/{sum(cond[7])}", ha='center', va='bottom')
+            # Plot block d primes
+            for j, block in enumerate(cond[4]):
+                axs.bar(i+0.2*j, block, color=color, alpha=0.5, width=0.2)
+                # Add the text
+                axs.text(i+0.2*j, block, f"far={cond[10][j]}/{cond[8][j]}\nhr={cond[9][j]}/{cond[7][j]}", ha='center', va='bottom')
+            ttt[i].append(cond[4])
+        # Adding Labels
+        axs.set_ylim([-1, 4.5])
+        axs.set_ylabel('D Prime')
+        axs.set_title('D Prime by Condition ('+nameo+') '+name)
+        axs.set_xticks(np.arange(len(conditions)))
+        axs.set_xticklabels([f'{cond}\nTotal Block1 Block2' for cond in conditions])
+
+        # Increase text size
+        axs.title.set_size(20)
+        axs.xaxis.label.set_size(20)
+        axs.yaxis.label.set_size(20)
+        axs.tick_params(axis='both', which='major', labelsize=15)
+
+        # Displaying the plot
+        plt.show()
+        manager = plt.get_current_fig_manager()
+        manager.window.showMaximized()
+    uuuu,ui=average_nested_lists(ttt)   
+    fig, axs = plt.subplots()
+    plt.rcParams['axes.facecolor'] = "0.92"  # Set the background color to light grey
+    fig.patch.set_facecolor("0.92")  # Set the background color to light grey
+    # Setting up data and labels
+    conditions = ['angle', 'room', 'voice angle', 'voice room']
+    data = [np.mean(angle,0), np.mean(room,0),np.mean(voiceangle,0), np.mean(voiceroom,0)]
+    dataste = [np.std(angle,0)/len(angle), np.std(room,0)/len(room),np.std(voiceangle,0)/len(voiceangle), np.std(voiceroom,0)/len(voiceroom)]
+    color_list = ['skyblue', 'lightcoral', 'deepskyblue', 'salmon']
+
+    # Looping over conditions
+    for i, (cond, color) in enumerate(zip(data, color_list)):
+        # Plot total d prime
+        axs.bar(i-0.2, cond[0], color=color, width=0.2,yerr=dataste[i][0])
+        # Add the text
+        for j, block in enumerate(uuuu[i]):
+            axs.bar(i+0.2*j, block, color=color, alpha=0.5, width=0.2)
+            # Add the text
+            axs.text(i+0.2*j, block, f"N={ui[i][j]}", ha='center', va='bottom')
+    # Adding Labels
+    axs.set_ylabel('D Prime')
+    axs.set_title('D Prime by Condition ('+nameo+') grand average N'+str(len(subjects)))
+    axs.set_xticks(np.arange(len(conditions)))
+    axs.set_xticklabels([f'{cond}\nTotal Block1 Block2' for cond in conditions])
+    axs.set_ylim([0, 2])
+    # Increase text size
+    axs.title.set_size(20)
+    axs.xaxis.label.set_size(20)
+    axs.yaxis.label.set_size(20)
+    axs.tick_params(axis='both', which='major', labelsize=15)
+
+    # Displaying the plot
+    plt.show()
+    manager = plt.get_current_fig_manager()
+    manager.window.showMaximized()
+    
+    
+    
